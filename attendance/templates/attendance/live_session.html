@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+{% block title %}Live attendance · {{ session.course.code }}{% endblock %}
+{% block content %}
+<section class="hero-row compact">
+  <div>
+    <p class="eyebrow">OPEN SESSION · {{ session.session_date }}</p>
+    <h1>{{ session.course.code }} — {{ session.course.name }}</h1>
+    <p class="muted">The camera frame is processed locally for recognition. Review the roster before finalizing.</p>
+  </div>
+  <form method="post" action="{% url 'finalize_session' session.id %}">{% csrf_token %}<button class="danger" type="submit">Finalize attendance</button></form>
+</section>
+
+<form id="csrf-form" hidden>{% csrf_token %}</form>
+<div class="live-layout">
+  <section class="camera-card">
+    <video id="camera" autoplay muted playsinline></video>
+    <canvas id="capture-canvas" hidden></canvas>
+    <div id="camera-placeholder">Camera is off</div>
+    <p id="recognition-status" class="camera-status">Press “Start camera” to begin.</p>
+    <div class="form-actions">
+      <button id="start-camera" type="button">Start camera</button>
+      <button id="stop-camera" type="button" class="secondary">Stop camera</button>
+    </div>
+    <p class="tiny muted">A match needs {{ confirmation_frames }} consecutive frames before it is marked present.</p>
+  </section>
+
+  <section class="roster-card">
+    <div class="section-heading"><h2>Attendance roster</h2><span>{{ records|length }} students</span></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>ID</th><th>Student</th><th>Status</th><th>Source</th><th>Manual correction</th></tr></thead>
+        <tbody>
+          {% for record in records %}
+          <tr data-student="{{ record.student.student_id }}">
+            <td>{{ record.student.student_id }}</td>
+            <td>{{ record.student.name }}</td>
+            <td class="record-status"><span class="badge {{ record.status|lower }}">{{ record.get_status_display }}</span></td>
+            <td class="record-source">{{ record.get_source_display }}</td>
+            <td>
+              <form method="post" action="{% url 'mark_record_manually' session.id record.student.student_id %}" class="manual-form">
+                {% csrf_token %}
+                <select name="status"><option value="PRESENT">Present</option><option value="ABSENT">Absent</option></select>
+                <button type="submit" class="small-button">Save</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<script>
+(() => {
+  const video = document.getElementById('camera');
+  const canvas = document.getElementById('capture-canvas');
+  const startButton = document.getElementById('start-camera');
+  const stopButton = document.getElementById('stop-camera');
+  const status = document.getElementById('recognition-status');
+  const placeholder = document.getElementById('camera-placeholder');
+  const csrfToken = document.querySelector('#csrf-form [name=csrfmiddlewaretoken]')?.value;
+  let stream = null;
+  let timer = null;
+  let requestInFlight = false;
+
+  function updateRow(data) {
+    if (!data.student_id) return;
+    const row = document.querySelector(`[data-student="${CSS.escape(data.student_id)}"]`);
+    if (!row) return;
+    if (data.attendance_status === 'marked_present' || data.attendance_status === 'already_present') {
+      row.querySelector('.record-status').innerHTML = '<span class="badge present">Present</span>';
+      row.querySelector('.record-source').textContent = data.attendance_status === 'marked_present' ? 'Face recognition' : row.querySelector('.record-source').textContent;
+      row.classList.add('just-marked');
+      setTimeout(() => row.classList.remove('just-marked'), 1300);
+    }
+  }
+
+  async function sendFrame() {
+    if (!stream || requestInFlight || video.readyState < 2) return;
+    requestInFlight = true;
+    const ratio = Math.min(640 / video.videoWidth, 1);
+    canvas.width = Math.max(1, Math.round(video.videoWidth * ratio));
+    canvas.height = Math.max(1, Math.round(video.videoHeight * ratio));
+    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+    try {
+      const response = await fetch('{% url "recognize_frame" session.id %}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken},
+        body: JSON.stringify({image: canvas.toDataURL('image/jpeg', 0.72)})
+      });
+      const data = await response.json();
+      status.textContent = data.message || 'Waiting for a face…';
+      updateRow(data);
+    } catch (error) {
+      status.textContent = 'Camera is running, but the server could not process this frame.';
+    } finally { requestInFlight = false; }
+  }
+
+  async function startCamera() {
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({video: {width: {ideal: 640}, height: {ideal: 480}}, audio: false});
+      video.srcObject = stream;
+      placeholder.hidden = true;
+      status.textContent = 'Camera started. Looking for an enrolled face…';
+      clearInterval(timer);
+      timer = setInterval(sendFrame, 900);
+    } catch (error) {
+      status.textContent = 'Camera access was denied or unavailable. Allow camera permission and try again.';
+    }
+  }
+  function stopCamera() {
+    clearInterval(timer); timer = null;
+    if (stream) stream.getTracks().forEach(track => track.stop());
+    stream = null; video.srcObject = null; placeholder.hidden = false;
+    status.textContent = 'Camera stopped.';
+  }
+  startButton.addEventListener('click', startCamera);
+  stopButton.addEventListener('click', stopCamera);
+  window.addEventListener('beforeunload', stopCamera);
+})();
+</script>
+{% endblock %}

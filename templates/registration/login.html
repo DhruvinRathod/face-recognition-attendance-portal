@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block title %}Teacher login · FaceAttend{% endblock %}
+{% block content %}
+<section class="auth-card">
+  <p class="eyebrow">TEACHER PORTAL</p>
+  <h1>Log in to manage attendance</h1>
+  <p class="muted">Only approved teacher accounts can create or finalize attendance sessions.</p>
+  <form method="post" class="stack-form">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="form-error">{{ form.non_field_errors }}</div>{% endif %}
+    <label>Username {{ form.username }}</label>
+    <label>Password {{ form.password }}</label>
+    <button type="submit">Log in</button>
+  </form>
+</section>
+{% endblock %}

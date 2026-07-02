@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="form-card">
+  <p class="eyebrow">PORTAL SETUP</p>
+  <h1>{{ title }}</h1>
+  <form method="post" class="stack-form">
+    {% csrf_token %}
+    {% for field in form %}
+      <div class="field-group">
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
+        {% for error in field.errors %}<p class="form-error">{{ error }}</p>{% endfor %}
+      </div>
+    {% endfor %}
+    <div class="form-actions"><a class="button secondary" href="{% url 'dashboard' %}">Cancel</a><button type="submit">{{ submit_label }}</button></div>
+  </form>
+</section>
+{% endblock %}

@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+/data/faces/*
+!/data/faces/.gitkeep
+/data/attendance.db
+/data/exports/*
+!/data/exports/.gitkeep
+/models/*
+!/models/.gitkeep
+.DS_Store
+.vscode/
+.idea/
+/data/portal.db
+/staticfiles/
