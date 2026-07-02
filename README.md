@@ -154,6 +154,6 @@ This project is intended for academic demonstration and controlled testing only.
 
 ## Author
 
-Shalini Nanjunda
-M.Sc. Artificial Intelligence Student
-GitHub: https://github.com/YOUR-USERNAME
+Dhruvinsinh Rathod  
+M.Sc. Computer Science
+GitHub: https://github.com/DhruvinRathod
