@@ -1,4 +1,5 @@
 import json
+from datetime import date
 from unittest.mock import patch
 
 from django.contrib.auth.models import Group, User
@@ -44,6 +45,20 @@ class AttendancePortalTests(TestCase):
         self.assertEqual(record.status, AttendanceRecord.Status.ABSENT)
         self.assertEqual(record.source, AttendanceRecord.Source.SYSTEM)
 
+    def test_datewise_attendance_history_filters_records(self):
+        session = self.start_open_session()
+        session.session_date = date(2026, 8, 30)
+        session.save(update_fields=["session_date"])
+
+        response = self.client.get(reverse("attendance_history"), {"date": "2026-08-30"})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Demo Student")
+        self.assertContains(response, "30 Aug 2026")
+
+        empty = self.client.get(reverse("attendance_history"), {"date": "2026-08-29"})
+        self.assertEqual(empty.status_code, 200)
+        self.assertNotContains(empty, "Demo Student")
+
     @patch("attendance.views.recognize_data_url")
     def test_three_confirmed_face_frames_mark_student_present_once(self, mock_recognize):
         session = self.start_open_session()
@@ -68,6 +83,20 @@ class AttendancePortalTests(TestCase):
         response = self.client.post(url, data=json.dumps({"image": "data:image/jpeg;base64,AA=="}), content_type="application/json")
         self.assertEqual(response.json()["attendance_status"], "already_present")
         self.assertEqual(AttendanceRecord.objects.filter(session=session, student=self.student).count(), 1)
+
+    @patch("attendance.views.recognize_data_url")
+    def test_unmatched_real_face_requests_a_different_face(self, mock_recognize):
+        session = self.start_open_session()
+        mock_recognize.return_value = RecognitionResult(matched=False, message="Unknown face")
+        response = self.client.post(
+            reverse("recognize_frame", args=[session.id]),
+            data=json.dumps({"image": "data:image/jpeg;base64,AA=="}),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.json()["recognized"])
+        self.assertIn("different enrolled face", response.json()["message"])
+        self.assertEqual(AttendanceRecord.objects.get(session=session).status, AttendanceRecord.Status.ABSENT)
 
     @override_settings(DEMO_MODE=True, DEMO_USERNAME="teacher", DEMO_PASSWORD="SafePass123!")
     def test_demo_login_uses_preloaded_teacher(self):
@@ -94,6 +123,16 @@ class AttendancePortalTests(TestCase):
         )
         self.assertEqual(blocked.status_code, 403)
         self.assertIn("disabled", blocked.json()["message"])
+
+    @override_settings(DEMO_MODE=True)
+    def test_demo_unknown_face_keeps_attendance_unchanged_and_prompts_for_next_face(self):
+        session = self.start_open_session()
+        response = self.client.post(reverse("simulate_unknown_face", args=[session.id]), follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "different enrolled face")
+        record = AttendanceRecord.objects.get(session=session, student=self.student)
+        self.assertEqual(record.status, AttendanceRecord.Status.ABSENT)
+        self.assertEqual(record.source, AttendanceRecord.Source.SYSTEM)
 
     def test_teacher_can_manually_correct_and_export_final_report(self):
         session = self.start_open_session()
