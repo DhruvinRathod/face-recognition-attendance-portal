@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: face-attendance-recruiter-demo
+    runtime: python
+    plan: free
+    region: frankfurt
+    buildCommand: pip install -r requirements-demo.txt && python manage.py collectstatic --noinput
+    startCommand: bash start_demo.sh
+    autoDeploy: true
+    envVars:
+      - key: DEMO_MODE
+        value: "true"
+      - key: WEB_CONCURRENCY
+        value: "2"
+      - key: SECRET_KEY
+        generateValue: true
