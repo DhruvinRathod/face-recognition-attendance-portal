@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import io
 import json
+from datetime import date
 
 from django.conf import settings
 from django.contrib import messages
@@ -42,7 +43,7 @@ def demo_login(request: HttpRequest) -> HttpResponse:
         return redirect("login")
 
     auth_login(request, user)
-    messages.success(request, "Recruiter demo opened. All students and attendance data here are synthetic.")
+    messages.success(request, "Demo opened. All students and attendance data here are synthetic.")
     return redirect("dashboard")
 
 
@@ -66,6 +67,48 @@ def dashboard(request: HttpRequest) -> HttpResponse:
         request,
         "attendance/dashboard.html",
         {"courses": courses, "sessions": sessions, "demo_mode": settings.DEMO_MODE},
+    )
+
+
+@teacher_required
+def attendance_history(request: HttpRequest) -> HttpResponse:
+    """Show attendance records for a teacher-selected calendar date."""
+    raw_date = request.GET.get("date", "").strip()
+    selected_date = timezone.localdate()
+    if raw_date:
+        try:
+            selected_date = date.fromisoformat(raw_date)
+        except ValueError:
+            messages.warning(request, "Please choose a valid attendance date.")
+
+    selected_course = request.GET.get("course", "").strip()
+    courses = Course.objects.filter(teacher=request.user).order_by("code")
+    sessions = AttendanceSession.objects.filter(
+        teacher=request.user,
+        session_date=selected_date,
+    ).select_related("course")
+
+    if selected_course:
+        sessions = sessions.filter(course_id=selected_course)
+
+    records = AttendanceRecord.objects.filter(session__in=sessions).select_related(
+        "student", "session__course"
+    ).order_by("session__course__code", "student__student_id")
+
+    return render(
+        request,
+        "attendance/history.html",
+        {
+            "selected_date": selected_date,
+            "selected_course": selected_course,
+            "courses": courses,
+            "sessions": sessions,
+            "records": records,
+            "present_count": records.filter(status=AttendanceRecord.Status.PRESENT).count(),
+            "absent_count": records.filter(status=AttendanceRecord.Status.ABSENT).count(),
+            "session_count": sessions.count(),
+            "demo_mode": settings.DEMO_MODE,
+        },
     )
 
 
@@ -111,7 +154,7 @@ def start_session(request: HttpRequest, course_id: int) -> HttpResponse:
         AttendanceRecord.objects.bulk_create(records, ignore_conflicts=True)
 
     if settings.DEMO_MODE:
-        messages.info(request, "Attendance session started. Use the safe demo control to simulate recognition.")
+        messages.info(request, "Attendance session started. Use the demo controls to test matched and unmatched faces.")
     else:
         messages.info(request, "Attendance session started. Start the camera when you are ready.")
     return redirect("live_session", session_id=session.id)
@@ -154,7 +197,7 @@ def _reset_confirmation(session_id: int) -> None:
 @require_POST
 @teacher_required
 def simulate_recognition(request: HttpRequest, session_id: int) -> HttpResponse:
-    """Demonstrate the attendance workflow without collecting public biometric data."""
+    """Demonstrate a successful recognition without collecting public biometric data."""
     if not settings.DEMO_MODE:
         raise Http404
 
@@ -176,7 +219,26 @@ def simulate_recognition(request: HttpRequest, session_id: int) -> HttpResponse:
     record.mark_present(AttendanceRecord.Source.DEMO)
     messages.success(
         request,
-        f"Simulated recognition matched {record.student.name}. No camera image or biometric data was processed.",
+        f"Face matched: {record.student.name}. No camera image or biometric data was processed in this hosted demo.",
+    )
+    return redirect("live_session", session_id=session.id)
+
+
+@require_POST
+@teacher_required
+def simulate_unknown_face(request: HttpRequest, session_id: int) -> HttpResponse:
+    """Demonstrate the UX for an unmatched face without collecting biometric data."""
+    if not settings.DEMO_MODE:
+        raise Http404
+
+    session = _teacher_session_or_404(request.user, session_id)
+    if session.status != AttendanceSession.Status.OPEN:
+        messages.error(request, "This attendance session has already been finalized.")
+        return redirect("session_report", session_id=session.id)
+
+    messages.warning(
+        request,
+        "Face not recognized. Please show a different enrolled face, or use manual attendance if recognition is unavailable.",
     )
     return redirect("live_session", session_id=session.id)
 
@@ -192,7 +254,7 @@ def recognize_frame(request: HttpRequest, session_id: int) -> JsonResponse:
         return JsonResponse(
             {
                 "ok": False,
-                "message": "Live biometric recognition is disabled on the public portfolio demo. Use the simulation control instead.",
+                "message": "Live biometric recognition is disabled on the public demo. Use the simulation controls instead.",
             },
             status=403,
         )
@@ -210,12 +272,26 @@ def recognize_frame(request: HttpRequest, session_id: int) -> JsonResponse:
 
     if not result.matched or result.student_id is None:
         _reset_confirmation(session.id)
-        return JsonResponse({"ok": True, "recognized": False, "message": result.message, "distance": result.distance})
+        return JsonResponse(
+            {
+                "ok": True,
+                "recognized": False,
+                "message": "Face not recognized. Please show a different enrolled face.",
+                "distance": result.distance,
+            }
+        )
 
     record = session.records.select_related("student").filter(student_id=result.student_id).first()
     if record is None:
         _reset_confirmation(session.id)
-        return JsonResponse({"ok": True, "recognized": False, "message": f"{result.name} is not enrolled in {session.course.code}.", "distance": result.distance})
+        return JsonResponse(
+            {
+                "ok": True,
+                "recognized": False,
+                "message": f"Face matched, but this person is not enrolled in {session.course.code}. Please show a different enrolled face.",
+                "distance": result.distance,
+            }
+        )
 
     if record.status == AttendanceRecord.Status.PRESENT:
         _reset_confirmation(session.id)
@@ -228,7 +304,7 @@ def recognize_frame(request: HttpRequest, session_id: int) -> JsonResponse:
                 "distance": result.distance,
                 "confirmed": True,
                 "attendance_status": "already_present",
-                "message": f"Already marked present: {record.student.name}",
+                "message": f"Already marked present: {record.student.name}. Show the next face.",
             }
         )
 
@@ -258,7 +334,7 @@ def recognize_frame(request: HttpRequest, session_id: int) -> JsonResponse:
             "distance": result.distance,
             "confirmed": True,
             "attendance_status": "marked_present",
-            "message": f"Attendance marked present: {record.student.name}",
+            "message": f"Attendance marked present: {record.student.name}. Show the next face.",
         }
     )
 
