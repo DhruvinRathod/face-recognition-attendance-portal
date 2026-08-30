@@ -71,6 +71,7 @@ class AttendanceRecord(models.Model):
         FACE = "FACE", "Face recognition"
         MANUAL = "MANUAL", "Teacher correction"
         SYSTEM = "SYSTEM", "Session initialization"
+        DEMO = "DEMO", "Demo simulation"
 
     session = models.ForeignKey(AttendanceSession, on_delete=models.CASCADE, related_name="records")
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name="attendance_records")
