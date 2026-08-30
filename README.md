@@ -4,9 +4,9 @@ A **role-based Django attendance management portal** where authenticated teacher
 
 > **Prototype only.** This project is not a production identity-verification or surveillance system. Use biometric features only with informed consent, provide a manual attendance alternative, and never use automated recognition as the sole basis for a high-impact decision.
 
-## Recruiter demo
+## Live demo
 
-The project includes a **safe hosted-demo mode** designed specifically for portfolio review:
+The project includes a **safe hosted demo mode** for public portfolio review:
 
 - one-click entry with a preloaded teacher account;
 - synthetic course and student data;
@@ -18,7 +18,7 @@ The repository includes a Render Blueprint (`render.yaml`) so the Django demo ca
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/DhruvinRathod/face-recognition-attendance-portal)
 
-After the hosted instance is created, its public URL can be linked directly from the portfolio so a recruiter lands on the working application rather than the source repository.
+After the hosted instance is created, its public URL can be linked directly from the portfolio so visitors land on the working application rather than only the source repository.
 
 ## What is included
 
@@ -31,7 +31,7 @@ After the hosted instance is created, its public URL can be linked directly from
 - Teacher manual correction before finalization.
 - Finalized report page and CSV export.
 - Webcam face enrollment and local LBPH model training scripts.
-- Hosted recruiter-demo mode that does not process public biometric data.
+- Hosted demo mode that does not process public biometric data.
 - Automated tests for authentication, teacher authorization, attendance creation, recognition confirmation, demo simulation, manual correction, finalization, and CSV export.
 
 ## Technology stack
@@ -61,7 +61,7 @@ src/train_model.py                  Creates models/lbph_face_model.yml
 models/                             Trained face model (ignored by Git)
 data/faces/                         Face samples (ignored by Git)
 data/portal.db                      Portal database (ignored by Git)
-render.yaml                         Hosted recruiter-demo configuration
+render.yaml                         Hosted demo configuration
 requirements-demo.txt               Lightweight hosted-demo dependencies
 start_demo.sh                       Migrate, seed demo data, start Gunicorn
 ```
@@ -106,7 +106,7 @@ DEMO_MODE=true
 SECRET_KEY=<secure random value>
 ```
 
-The hosted mode automatically disables the camera-recognition endpoint and exposes a simulation control instead. This preserves the recruiter-visible application workflow without collecting biometric data from public visitors.
+The hosted mode automatically disables the camera-recognition endpoint and exposes a simulation control instead. This preserves the application workflow without collecting biometric data from public visitors.
 
 The included Render configuration installs `requirements-demo.txt`, collects static assets, migrates the database, creates synthetic demo data and starts Gunicorn. The SQLite database is intentionally disposable for this portfolio demo and may reset when a free hosting instance restarts.
 
@@ -166,4 +166,4 @@ The test suite does not require a real camera or trained face model; recognition
 
 ## Suggested GitHub description
 
-> Role-based Django attendance portal with session workflows, CSV reporting, a consent-based OpenCV/LBPH local prototype, and a safe hosted recruiter demo.
+> Role-based Django attendance portal with session workflows, CSV reporting, a consent-based OpenCV/LBPH local prototype, and a safe hosted demo.
