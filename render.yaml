@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: face-attendance-recruiter-demo
+    name: face-attendance-demo
     runtime: python
     plan: free
     region: frankfurt
