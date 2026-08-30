@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 from django.contrib.auth.models import Group, User
 from django.core.cache import cache
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from .models import AttendanceRecord, AttendanceSession, Course, Enrollment, Student
@@ -68,6 +68,32 @@ class AttendancePortalTests(TestCase):
         response = self.client.post(url, data=json.dumps({"image": "data:image/jpeg;base64,AA=="}), content_type="application/json")
         self.assertEqual(response.json()["attendance_status"], "already_present")
         self.assertEqual(AttendanceRecord.objects.filter(session=session, student=self.student).count(), 1)
+
+    @override_settings(DEMO_MODE=True, DEMO_USERNAME="teacher", DEMO_PASSWORD="SafePass123!")
+    def test_demo_login_uses_preloaded_teacher(self):
+        response = self.client.post(reverse("demo_login"))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("dashboard"))
+        self.assertEqual(int(self.client.session["_auth_user_id"]), self.teacher.id)
+
+    @override_settings(DEMO_MODE=True)
+    def test_demo_simulation_marks_student_present_without_biometric_processing(self):
+        session = self.start_open_session()
+        response = self.client.post(reverse("simulate_recognition", args=[session.id]))
+        self.assertEqual(response.status_code, 302)
+
+        record = AttendanceRecord.objects.get(session=session, student=self.student)
+        self.assertEqual(record.status, AttendanceRecord.Status.PRESENT)
+        self.assertEqual(record.source, AttendanceRecord.Source.DEMO)
+        self.assertIsNone(record.recognition_distance)
+
+        blocked = self.client.post(
+            reverse("recognize_frame", args=[session.id]),
+            data=json.dumps({"image": "data:image/jpeg;base64,AA=="}),
+            content_type="application/json",
+        )
+        self.assertEqual(blocked.status_code, 403)
+        self.assertIn("disabled", blocked.json()["message"])
 
     def test_teacher_can_manually_correct_and_export_final_report(self):
         session = self.start_open_session()

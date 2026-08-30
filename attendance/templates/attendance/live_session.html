@@ -5,23 +5,41 @@
   <div>
     <p class="eyebrow">OPEN SESSION · {{ session.session_date }}</p>
     <h1>{{ session.course.code }} — {{ session.course.name }}</h1>
+    {% if demo_mode %}
+    <p class="muted">Public portfolio demo using synthetic students. Recognition is simulated so no visitor image or biometric data is captured.</p>
+    {% else %}
     <p class="muted">The camera frame is processed locally for recognition. Review the roster before finalizing.</p>
+    {% endif %}
   </div>
   <form method="post" action="{% url 'finalize_session' session.id %}">{% csrf_token %}<button class="danger" type="submit">Finalize attendance</button></form>
 </section>
 
-<form id="csrf-form" hidden>{% csrf_token %}</form>
 <div class="live-layout">
   <section class="camera-card">
-    <video id="camera" autoplay muted playsinline></video>
-    <canvas id="capture-canvas" hidden></canvas>
-    <div id="camera-placeholder">Camera is off</div>
-    <p id="recognition-status" class="camera-status">Press “Start camera” to begin.</p>
-    <div class="form-actions">
-      <button id="start-camera" type="button">Start camera</button>
-      <button id="stop-camera" type="button" class="secondary">Stop camera</button>
-    </div>
-    <p class="tiny muted">A match needs {{ confirmation_frames }} consecutive frames before it is marked present.</p>
+    {% if demo_mode %}
+      <div class="demo-recognition-visual">
+        <span>SAFE DEMO MODE</span>
+        <strong>Recognition workflow preview</strong>
+        <p>This hosted version demonstrates the application flow without running biometric identification on visitors.</p>
+      </div>
+      <p class="camera-status">Click below to simulate the next enrolled student being recognized.</p>
+      <form method="post" action="{% url 'simulate_recognition' session.id %}" class="form-actions">
+        {% csrf_token %}
+        <button type="submit">Simulate face match</button>
+      </form>
+      <p class="tiny muted">The repository contains the OpenCV/LBPH recognition path used for the local consent-based prototype. The public demo deliberately keeps it disabled.</p>
+    {% else %}
+      <form id="csrf-form" hidden>{% csrf_token %}</form>
+      <video id="camera" autoplay muted playsinline></video>
+      <canvas id="capture-canvas" hidden></canvas>
+      <div id="camera-placeholder">Camera is off</div>
+      <p id="recognition-status" class="camera-status">Press “Start camera” to begin.</p>
+      <div class="form-actions">
+        <button id="start-camera" type="button">Start camera</button>
+        <button id="stop-camera" type="button" class="secondary">Stop camera</button>
+      </div>
+      <p class="tiny muted">A match needs {{ confirmation_frames }} consecutive frames before it is marked present.</p>
+    {% endif %}
   </section>
 
   <section class="roster-card">
@@ -51,6 +69,7 @@
   </section>
 </div>
 
+{% if not demo_mode %}
 <script>
 (() => {
   const video = document.getElementById('camera');
@@ -120,4 +139,5 @@
   window.addEventListener('beforeunload', stopCamera);
 })();
 </script>
+{% endif %}
 {% endblock %}
