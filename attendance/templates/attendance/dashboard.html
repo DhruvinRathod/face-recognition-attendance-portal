@@ -5,13 +5,25 @@
   <div>
     <p class="eyebrow">TEACHER DASHBOARD</p>
     <h1>Welcome, {{ user.get_full_name|default:user.username }}</h1>
+    {% if demo_mode %}
+    <p class="muted">Explore the end-to-end workflow with synthetic data: start a session, simulate recognition, correct the roster, finalize attendance and export CSV.</p>
+    {% else %}
     <p class="muted">Choose a class, start a session, review face matches, and finalize the attendance record.</p>
+    {% endif %}
   </div>
   <div class="hero-actions">
     <a class="button secondary" href="{% url 'student_create' %}">Add student</a>
     <a class="button" href="{% url 'course_create' %}">Create course</a>
   </div>
 </section>
+
+{% if demo_mode %}
+<div class="demo-panel">
+  <p class="eyebrow">RECRUITER DEMO</p>
+  <h2>Safe hosted preview</h2>
+  <p class="muted">All records on this hosted instance are synthetic. Camera-based biometric recognition is intentionally disabled for public visitors; the local project contains the OpenCV/LBPH implementation.</p>
+</div>
+{% endif %}
 
 <section>
   <div class="section-heading"><h2>Your courses</h2><span>{{ courses|length }} course{{ courses|length|pluralize }}</span></div>
@@ -21,7 +33,7 @@
         <p class="course-code">{{ course.code }}</p>
         <h3>{{ course.name }}</h3>
         <p class="muted">{{ course.enrollments.count }} enrolled student{{ course.enrollments.count|pluralize }}</p>
-        <form method="post" action="{% url 'start_session' course.id %}">{% csrf_token %}<button type="submit">Start live attendance</button></form>
+        <form method="post" action="{% url 'start_session' course.id %}">{% csrf_token %}<button type="submit">{% if demo_mode %}Start demo attendance{% else %}Start live attendance{% endif %}</button></form>
       </article>
     {% empty %}
       <article class="empty-state"><h3>No courses yet</h3><p>Create a course, then add students to it before starting a session.</p></article>
