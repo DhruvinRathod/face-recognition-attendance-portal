@@ -9,11 +9,11 @@
   {% if demo_mode %}
   <div class="demo-panel">
     <p class="eyebrow">PUBLIC PORTFOLIO DEMO</p>
-    <h2>Recruiter preview</h2>
+    <h2>Interactive demo</h2>
     <p class="muted">Use a preloaded teacher account and synthetic students. The hosted demo does not capture or process biometric data; face recognition is represented by an explicit simulation control.</p>
     <form method="post" action="{% url 'demo_login' %}">
       {% csrf_token %}
-      <button type="submit">Enter recruiter demo</button>
+      <button type="submit">Enter demo</button>
     </form>
   </div>
   {% endif %}
