@@ -6,7 +6,9 @@ A **role-based Django attendance management portal** where authenticated teacher
 
 ## Live demo
 
-The project includes a **safe hosted demo mode** for public portfolio review:
+**[Open the hosted demo →](https://face-attendance-demo.onrender.com)**
+
+The public demo uses a **safe hosted mode** for portfolio review:
 
 - one-click entry with a preloaded teacher account;
 - synthetic course and student data;
@@ -14,11 +16,7 @@ The project includes a **safe hosted demo mode** for public portfolio review:
 - an explicit **Simulate face match** action that demonstrates recognition-driven application flow without uploading or processing a visitor's face;
 - real camera/LBPH recognition remains available in the local consent-based prototype and is intentionally disabled on the public demo.
 
-The repository includes a Render Blueprint (`render.yaml`) so the Django demo can be deployed as a web service.
-
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/DhruvinRathod/face-recognition-attendance-portal)
-
-After the hosted instance is created, its public URL can be linked directly from the portfolio so visitors land on the working application rather than only the source repository.
+The repository includes a Render Blueprint (`render.yaml`) for reproducible deployment of the Django demo.
 
 ## What is included
 
